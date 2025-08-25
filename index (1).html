@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ร้านขายของ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: #000;
+    }
+    header {
+      background: #000;
+      color: #fff;
+      padding: 1rem;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header button {
+      margin-left: 1rem;
+    }
+    .container {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem;
+    }
+    .sidebar {
+      width: 200px;
+    }
+    .products {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      flex: 1;
+    }
+    .product {
+      border: 1px solid #000;
+      padding: 1rem;
+      border-radius: 8px;
+      background: #fff;
+      text-align: center;
+    }
+    .product img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    button {
+      background: #000;
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+    button:hover {
+      opacity: 0.8;
+    }
+    .cart {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 300px;
+      height: 100%;
+      background: #f9f9f9;
+      border-left: 2px solid #000;
+      padding: 1rem;
+      transform: translateX(100%);
+      transition: transform 0.3s ease-in-out;
+      z-index: 20;
+      overflow-y: auto;
+    }
+    .cart.open {
+      transform: translateX(0);
+    }
+    .cart h2 {
+      margin-top: 0;
+    }
+    .cart-item {
+      border-bottom: 1px solid #ccc;
+      padding: 0.5rem 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .cart-item button {
+      margin: 0 0.2rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛒 ร้านขายของ</h1>
+    <button onclick="toggleCart()">ตะกร้าสินค้า 🛒</button>
+  </header>
+
+  <div class="container">
+    <div class="sidebar">
+      <h3>ค้นหา</h3>
+      <input type="text" id="search" placeholder="ค้นหาสินค้า" oninput="filterProducts()">
+      <h3>หมวดหมู่</h3>
+      <select id="category" onchange="filterProducts()">
+        <option value="all">ทั้งหมด</option>
+        <option value="clothes">เสื้อผ้า</option>
+        <option value="electronics">อิเล็กทรอนิกส์</option>
+      </select>
+    </div>
+
+    <div class="products" id="product-list"></div>
+  </div>
+
+  <div class="cart" id="cart">
+    <h2>ตะกร้าสินค้า</h2>
+    <div id="cart-items"></div>
+    <h3>รวม: <span id="total">0</span> บาท</h3>
+    <button onclick="checkout()">ชำระเงิน</button>
+  </div>
+
+  <script>
+    const products = [
+      { id: 1, name: "เสื้อยืด", price: 250, category: "clothes", image: "images/tshirt.jpg" },
+      { id: 2, name: "กางเกงยีนส์", price: 500, category: "clothes", image: "images/jeans.jpg" },
+      { id: 3, name: "หูฟัง", price: 800, category: "electronics", image: "images/headphone.jpg" },
+      { id: 4, name: "โทรศัพท์", price: 10000, category: "electronics", image: "images/phone.jpg" },
+    ];
+
+    let cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+    function renderProducts() {
+      const list = document.getElementById("product-list");
+      list.innerHTML = "";
+      products.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "product";
+        div.innerHTML = `
+          <img src="${p.image}" alt="${p.name}">
+          <h3>${p.name}</h3>
+          <p>${p.price} บาท</p>
+          <button onclick="addToCart(${p.id})">เพิ่มลงตะกร้า</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function filterProducts() {
+      const keyword = document.getElementById("search").value.toLowerCase();
+      const category = document.getElementById("category").value;
+      const list = document.getElementById("product-list");
+      list.innerHTML = "";
+      products
+        .filter(p => 
+          (category === "all" || p.category === category) &&
+          p.name.toLowerCase().includes(keyword)
+        )
+        .forEach(p => {
+          const div = document.createElement("div");
+          div.className = "product";
+          div.innerHTML = `
+            <img src="${p.image}" alt="${p.name}">
+            <h3>${p.name}</h3>
+            <p>${p.price} บาท</p>
+            <button onclick="addToCart(${p.id})">เพิ่มลงตะกร้า</button>
+          `;
+          list.appendChild(div);
+        });
+    }
+
+    function addToCart(id) {
+      const product = products.find(p => p.id === id);
+      const item = cart.find(i => i.id === id);
+      if (item) {
+        item.qty++;
+      } else {
+        cart.push({ ...product, qty: 1 });
+      }
+      saveCart();
+      renderCart();
+    }
+
+    function decreaseQty(id) {
+      const item = cart.find(i => i.id === id);
+      if (item.qty > 1) {
+        item.qty--;
+      } else {
+        removeFromCart(id);
+      }
+      saveCart();
+      renderCart();
+    }
+
+    function removeFromCart(id) {
+      cart = cart.filter(i => i.id !== id);
+      saveCart();
+      renderCart();
+    }
+
+    function saveCart() {
+      localStorage.setItem("cart", JSON.stringify(cart));
+    }
+
+    function renderCart() {
+      const cartItems = document.getElementById("cart-items");
+      const total = document.getElementById("total");
+      cartItems.innerHTML = "";
+      let sum = 0;
+      cart.forEach(i => {
+        sum += i.price * i.qty;
+        cartItems.innerHTML += `
+          <div class="cart-item">
+            <span>${i.name}</span>
+            <div>
+              <button onclick="decreaseQty(${i.id})">-</button>
+              ${i.qty}
+              <button onclick="addToCart(${i.id})">+</button>
+              = ${i.price * i.qty} บาท
+              <button onclick="removeFromCart(${i.id})">ลบ</button>
+            </div>
+          </div>
+        `;
+      });
+      total.textContent = sum;
+    }
+
+    function toggleCart() {
+      document.getElementById("cart").classList.toggle("open");
+      renderCart();
+    }
+
+    function checkout() {
+      alert("ระบบชำระเงิน (ตัวอย่าง)");
+    }
+
+    renderProducts();
+    renderCart();
+  </script>
+</body>
+</html>
